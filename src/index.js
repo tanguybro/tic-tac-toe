@@ -4,7 +4,7 @@ import './index.css';
 
 function Square(props) {
     return (
-        <button className="square" onClick={props.onClick}>
+        <button className="square" onClick={props.onClick} style={{ 'background-color': props.winnerSquare ? 'red' : '' }}>
             {props.value}
         </button>
     );
@@ -12,27 +12,19 @@ function Square(props) {
 
 class Board extends React.Component {
     renderSquare(i) {
-        return <Square value={this.props.squares[i]} onClick={() => this.props.onClick(i)} />;
+        return (
+            <Square value={this.props.squares[i]} key={i} winnerSquare={this.props.winnerLines?.includes(i)} onClick={() => this.props.onClick(i)} />
+        );
     }
 
     render() {
         return (
             <div>
-                <div className="board-row">
-                    {this.renderSquare(0)}
-                    {this.renderSquare(1)}
-                    {this.renderSquare(2)}
-                </div>
-                <div className="board-row">
-                    {this.renderSquare(3)}
-                    {this.renderSquare(4)}
-                    {this.renderSquare(5)}
-                </div>
-                <div className="board-row">
-                    {this.renderSquare(6)}
-                    {this.renderSquare(7)}
-                    {this.renderSquare(8)}
-                </div>
+                {[...Array(3)].map((x, i) => (
+                    <div className="board-row" key={i}>
+                        {[...Array(3)].map((x, j) => this.renderSquare(j + i * 3))}
+                    </div>
+                ))}
             </div>
         );
     }
@@ -50,11 +42,11 @@ class Game extends React.Component {
             ],
             stepNumber: 0,
             xIsNext: true,
+            reverseList: false,
         };
     }
 
     handleClick(i) {
-        console.log(i);
         const history = this.state.history.slice(0, this.state.stepNumber + 1);
         const current = history[this.state.stepNumber];
         const squares = current.squares.slice();
@@ -86,18 +78,16 @@ class Game extends React.Component {
         const current = history[history.length - 1];
         const winner = calculateWinner(current.squares);
 
-        const moves = history.map((step, move) => {
+        let moves = history.map((step, move) => {
             const desc = move ? 'Go to move #' + move : 'Go to game start';
             return (
                 <li key={move}>
                     <button
                         onMouseEnter={(event) => {
-                            console.log(event.target);
-                            event.target.style = "{{ 'font-weight': 'bold' }}";
-                            console.log(event.target);
+                            event.target.style.fontWeight = 'bold';
                         }}
                         onMouseLeave={(event) => {
-                            event.target.style = { 'font-weight': '' };
+                            event.target.style.fontWeight = '';
                         }}
                         onClick={() => this.jumpTo(move)}
                     >
@@ -108,19 +98,25 @@ class Game extends React.Component {
             );
         });
 
+        if (this.state.reverseList) {
+            moves = moves.reverse();
+        }
+
         let status;
         if (winner) {
-            status = winner + ' a gagné';
+            status = winner.winner ? winner.winner + ' a gagné' : 'Egalité';
         } else {
             status = 'Prochain joueur : ' + (this.state.xIsNext ? 'X' : 'O');
         }
         return (
             <div className="game">
                 <div className="game-board">
-                    <Board squares={current.squares} onClick={(i) => this.handleClick(i)} />
+                    <Board squares={current.squares} onClick={(i) => this.handleClick(i)} winnerLines={winner?.line} />
                 </div>
                 <div className="game-info">
                     <div>{status}</div>
+                    <br />
+                    <button onClick={() => this.setState({ reverseList: !this.state.reverseList })}>Reverse list order</button>
                     <ol>{moves}</ol>
                 </div>
             </div>
@@ -142,10 +138,16 @@ function calculateWinner(squares) {
     for (let i = 0; i < lines.length; i++) {
         const [a, b, c] = lines[i];
         if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
-            return squares[a];
+            return { winner: squares[a], line: lines[i] };
         }
     }
-    return null;
+    for (const square of squares) {
+        if (square === null) {
+            return null;
+        }
+    }
+
+    return 'draw';
 }
 
 // ========================================
